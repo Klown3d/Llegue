@@ -1,0 +1,49 @@
+{
+  "name": "Llegue | API | Consultar seguimiento público",
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "GET", "path": "llegue/tracking", "responseMode": "responseNode", "options": {} },
+      "id": "public-webhook", "name": "Recibir consulta pública", "type": "n8n-nodes-base.webhook", "typeVersion": 2, "position": [0, 0], "webhookId": "llegue-public-tracking"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://lfmzcyyryjpqgjqxlumk.supabase.co/rest/v1/rpc/get_public_tracking",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpTemplatedCustomAuth",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [
+          { "name": "Content-Profile", "value": "llegue_api" }
+        ] },
+        "sendBody": true,
+        "bodyParameters": { "parameters": [
+          { "name": "p_public_token", "value": "={{ $json.query.token }}" }
+        ] },
+        "options": { "timeout": 10000 }
+      },
+      "id": "read-snapshot", "name": "Consultar seguimiento vía Supabase RPC", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [300, 0], "retryOnFail": true, "maxTries": 3, "waitBetweenTries": 1000,
+      "credentials": {
+        "httpTemplatedCustomAuth": {
+          "id": "ucgmru5CQjtcrevG",
+          "name": "Supabase llegue_api (Klown3d)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json", "responseBody": "={{ $json._notFound ? { message: 'Seguimiento no encontrado o vencido' } : $json }}",
+        "options": { "responseCode": "={{ $json._notFound ? 404 : 200 }}", "responseHeaders": { "entries": [
+          { "name": "Cache-Control", "value": "private, no-store, max-age=0" },
+          { "name": "X-Content-Type-Options", "value": "nosniff" }
+        ] } }
+      },
+      "id": "respond-public", "name": "Responder estado público", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1.4, "position": [600, 0]
+    }
+  ],
+  "connections": {
+    "Recibir consulta pública": { "main": [[{ "node": "Consultar seguimiento vía Supabase RPC", "type": "main", "index": 0 }]] },
+    "Consultar seguimiento vía Supabase RPC": { "main": [[{ "node": "Responder estado público", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "saveDataErrorExecution": "all", "saveDataSuccessExecution": "none" },
+  "active": false, "versionId": "22222222-2222-4222-8222-222222222222", "meta": { "templateCredsSetupCompleted": false }, "tags": []
+}

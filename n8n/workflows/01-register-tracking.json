@@ -1,0 +1,50 @@
+{
+  "name": "Llegue | API | Registrar seguimiento",
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "POST", "path": "llegue/tracking/register", "responseMode": "responseNode", "options": {} },
+      "id": "register-webhook", "name": "Recibir alta de seguimiento", "type": "n8n-nodes-base.webhook", "typeVersion": 2, "position": [0, 0], "webhookId": "llegue-register-tracking"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body ?? {};\nconst required = ['routeId', 'stopId', 'snapshot'];\nconst missing = required.filter((key) => body[key] == null || body[key] === '');\nif (missing.length) throw new Error(`Campos requeridos: ${missing.join(', ')}`);\nif (JSON.stringify(body.snapshot).length > 12000) throw new Error('El snapshot supera el máximo permitido');\nreturn [{ json: { routeId: String(body.routeId), stopId: String(body.stopId), updateToken: body.updateToken ? String(body.updateToken) : null, snapshot: body.snapshot } }];"
+      },
+      "id": "validate-register", "name": "Validar alta y limitar payload", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://TU-PROYECTO.supabase.co/rest/v1/rpc/register_tracking",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [
+          { "name": "Content-Profile", "value": "llegue_api" }
+        ] },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ p_route_id: $json.routeId, p_stop_id: $json.stopId, p_snapshot: $json.snapshot, p_update_token: $json.updateToken }) }}",
+        "options": { "timeout": 10000 }
+      },
+      "id": "persist-register", "name": "Crear seguimiento vía Supabase RPC", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [500, 0], "retryOnFail": true, "maxTries": 3, "waitBetweenTries": 1000
+    },
+    {
+      "parameters": {
+        "respondWith": "json", "responseBody": "={{ $json }}",
+        "options": { "responseHeaders": { "entries": [
+          { "name": "Access-Control-Allow-Origin", "value": "https://klown3d.app.n8n.cloud/" },
+          { "name": "Cache-Control", "value": "no-store" }
+        ] } }
+      },
+      "id": "respond-register", "name": "Responder credenciales de seguimiento", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1.4, "position": [760, 0]
+    }
+  ],
+  "connections": {
+    "Recibir alta de seguimiento": { "main": [[{ "node": "Validar alta y limitar payload", "type": "main", "index": 0 }]] },
+    "Validar alta y limitar payload": { "main": [[{ "node": "Crear seguimiento vía Supabase RPC", "type": "main", "index": 0 }]] },
+    "Crear seguimiento vía Supabase RPC": { "main": [[{ "node": "Responder credenciales de seguimiento", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "saveDataErrorExecution": "all", "saveDataSuccessExecution": "none" },
+  "active": false, "versionId": "11111111-1111-4111-8111-111111111111", "meta": { "templateCredsSetupCompleted": false }, "tags": []
+}

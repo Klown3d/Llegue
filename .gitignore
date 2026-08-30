@@ -1,0 +1,8 @@
+node_modules
+dist
+.codex-temp/
+outputs/
+supabase/.temp/
+.env*
+!.env.example
+.DS_Store

@@ -1,0 +1,50 @@
+{
+  "name": "Llegue | Eventos | Actualizar entrega",
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "POST", "path": "llegue/tracking/event", "responseMode": "responseNode", "options": {} },
+      "id": "event-webhook", "name": "Recibir evento de navegación", "type": "n8n-nodes-base.webhook", "typeVersion": 2, "position": [0, 0], "webhookId": "llegue-delivery-event"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst body = input.body ?? {};\nconst allowed = new Set(['delivery.en_route','delivery.completed','delivery.failed','delivery.eta_changed','delivery.exception']);\nconst key = String(input.headers?.['idempotency-key'] ?? '');\nif (!/^[0-9a-f-]{36}$/i.test(key)) throw new Error('Idempotency-Key inválido');\nif (!allowed.has(body.type)) throw new Error('Tipo de evento no permitido');\nfor (const field of ['routeId','stopId','updateToken','occurredAt']) if (!body[field]) throw new Error(`Falta ${field}`);\nif (JSON.stringify(body).length > 18000) throw new Error('El evento supera el máximo permitido');\nreturn [{ json: { ...body, idempotencyKey: key, data: body.data ?? {}, snapshot: body.snapshot ?? {} } }];"
+      },
+      "id": "validate-event", "name": "Validar evento e idempotencia", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://TU-PROYECTO.supabase.co/rest/v1/rpc/apply_tracking_event",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [
+          { "name": "Content-Profile", "value": "llegue_api" }
+        ] },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ p_route_id: $json.routeId, p_stop_id: $json.stopId, p_update_token: $json.updateToken, p_idempotency_key: $json.idempotencyKey, p_event_type: $json.type, p_occurred_at: $json.occurredAt, p_payload: $json.data, p_snapshot: $json.snapshot }) }}",
+        "options": { "timeout": 10000 }
+      },
+      "id": "persist-event", "name": "Aplicar evento vía Supabase RPC", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [500, 0], "retryOnFail": true, "maxTries": 3, "waitBetweenTries": 1000
+    },
+    {
+      "parameters": {
+        "respondWith": "json", "responseBody": "={{ $json }}",
+        "options": { "responseHeaders": { "entries": [
+          { "name": "Access-Control-Allow-Origin", "value": "https://klown3d.app.n8n.cloud/" },
+          { "name": "Cache-Control", "value": "no-store" }
+        ] } }
+      },
+      "id": "respond-event", "name": "Confirmar evento", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1.4, "position": [760, 0]
+    }
+  ],
+  "connections": {
+    "Recibir evento de navegación": { "main": [[{ "node": "Validar evento e idempotencia", "type": "main", "index": 0 }]] },
+    "Validar evento e idempotencia": { "main": [[{ "node": "Aplicar evento vía Supabase RPC", "type": "main", "index": 0 }]] },
+    "Aplicar evento vía Supabase RPC": { "main": [[{ "node": "Confirmar evento", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "saveDataErrorExecution": "all", "saveDataSuccessExecution": "none" },
+  "active": false, "versionId": "33333333-3333-4333-8333-333333333333", "meta": { "templateCredsSetupCompleted": false }, "tags": []
+}
