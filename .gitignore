@@ -1,8 +1,10 @@
 node_modules
 dist
 .codex-temp/
+.wrangler/
 outputs/
 supabase/.temp/
 .env*
 !.env.example
+.dev.vars*
 .DS_Store
