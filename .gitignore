@@ -2,6 +2,7 @@ node_modules
 dist
 .vercel/
 .codex-temp/
+.openai/
 outputs/
 supabase/.temp/
 .env*
